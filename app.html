@@ -104,6 +104,129 @@
   });
 </script>
 
+<script>
+/** ===== Sheets 어댑터: 기존 함수 이름 유지(레이아웃/디자인 변경 없음) ===== **/
 
+// 1) 웹앱 URL 저장/불러오기
+//  - 이미 api 입력칸이 있는 app.html을 쓰신다면, 그 입력칸에 붙여넣고 LocalStorage에 저장하면 됩니다.
+//  - 여기는 안전빵으로 LocalStorage에서 읽어옵니다.
+function getApiBase_() {
+  // app.html에서 저장했던 키를 재사용하거나, 첫 설정 시 아래에 직접 넣어도 됩니다.
+  return localStorage.getItem('https://script.google.com/macros/s/AKfycbzaKNWodt-9RbMwaLJKu4RyBEm0lwcmJcjtWyGPXLdO-ZYPQxafrIttzw6bPWsbBFZX/exec') || ''; // 비어있으면 나중에 알럿 띄움
+}
+
+async function api_(action, payload) {
+  const url = getApiBase_();
+  if (!url) { alert('Apps Script 웹앱 URL을 먼저 저장하세요.'); throw new Error('No API URL'); }
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action, ...payload })
+  });
+  const text = await res.text();
+  try { return JSON.parse(text); } catch(e) { return { error: 'Invalid JSON', raw: text }; }
+}
+
+// 2) 시트 키 매핑 (기존 COLLECTIONS 이름 그대로 사용)
+const SHEET_KEYS = {
+  projects: 'projects',
+  daily_logs: 'daily_logs',
+  schedules: 'schedules',
+  master_personnel: 'master_personnel',
+  master_equipment: 'master_equipment',
+  master_materials: 'master_materials',
+  master_outsourcing: 'master_outsourcing',
+  master_costItems: 'master_costItems',
+};
+
+// 3) 기존 코드에서 부르던 리스너 함수를 "시트 읽기"로 대체
+async function setupDataListeners() {
+  // projects
+  const projects = await api_('read', { sheet: SHEET_KEYS.projects });
+  globalState.projects = Array.isArray(projects) ? projects : [];
+  if (!globalState.selectedProjectId && globalState.projects.length) {
+    globalState.selectedProjectId = globalState.projects[0].id || null;
+  }
+
+  // master data
+  const types = ['personnel','equipment','materials','outsourcing','costItems'];
+  for (const t of types) {
+    const sheetKey = SHEET_KEYS['master_'+t];
+    const rows = await api_('read', { sheet: sheetKey });
+    globalState.masterData[t] = Array.isArray(rows) ? rows : [];
+  }
+
+  // daily logs (전체 읽어서 클라이언트에서 필터)
+  const logs = await api_('read', { sheet: SHEET_KEYS.daily_logs });
+  globalState.dailyLogs = Array.isArray(logs) ? logs : [];
+
+  // schedules
+  const sch = await api_('read', { sheet: SHEET_KEYS.schedules });
+  globalState.schedules = Array.isArray(sch) ? sch : [];
+
+  // 렌더
+  renderApp();
+
+  // 가벼운 폴링(선택): 15초마다 새로고침 느낌
+  if (!window.__sheets_polling__) {
+    window.__sheets_polling__ = setInterval(setupDataListeners, 15000);
+  }
+}
+
+// 4) 저장/수정 (기존 saveDocument 대체)
+//   - id 없으면 create, 있으면 update
+async function saveDocument(collectionName, data, id) {
+  try {
+    const sheet = SHEET_KEYS[collectionName];
+    if (!sheet) throw new Error('Unknown collection: ' + collectionName);
+
+    if (id) {
+      await api_('update', { sheet, id, record: data });
+      showMessage('업데이트 완료');
+    } else {
+      await api_('create', { sheet, record: data });
+      showMessage('추가 완료');
+    }
+    // 저장 후 최신 데이터 반영
+    await setupDataListeners();
+  } catch (e) {
+    console.error(e);
+    showMessage('저장 중 오류: ' + e.message, true);
+  }
+}
+
+// 5) 삭제 (기존 deleteDocument 대체)
+async function deleteDocument(collectionName, id) {
+  if (!confirm('정말 삭제할까요?')) return;
+  try {
+    const sheet = SHEET_KEYS[collectionName];
+    if (!sheet) throw new Error('Unknown collection: ' + collectionName);
+    await api_('delete', { sheet, id });
+    showMessage('삭제 완료');
+    await setupDataListeners();
+  } catch (e) {
+    console.error(e);
+    showMessage('삭제 중 오류: ' + e.message, true);
+  }
+}
+
+// 6) Firebase 초기화 자리에, 그냥 UI 보이기 + 데이터 로드
+async function initializeFirebase() {
+  // 로딩 숨기고 본문 보이기 (기존 구조 유지)
+  const loading = document.getElementById('loadingIndicator');
+  const main = document.getElementById('mainContent');
+  if (loading) loading.classList.add('hidden');
+  if (main) main.classList.remove('hidden');
+
+  // 사용자 ID는 Sheets라서 없으니 간단 안내
+  const uid = document.getElementById('userIdDisplay');
+  if (uid) uid.textContent = 'Sheets-Mode';
+
+  // 데이터 불러오기
+  await setupDataListeners();
+}
+</script>
+
+  
 </body>
 </html>
