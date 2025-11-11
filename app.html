@@ -1,36 +1,43 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Data Flow Hub (Sheets DB)</title>
-  <link rel="icon" href="logo.svg" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>주영건설산업(주) 프로젝트 관리툴</title>
+  <link rel="icon" href="logo.png"/>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style> body{font-family:Inter,system-ui,apple-system,Segoe UI,Roboto,sans-serif} </style>
 </head>
 <body class="bg-gray-50">
+  <!-- 헤더 -->
   <header class="bg-white shadow">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <img src="logo.svg" alt="logo" class="w-7 h-7" />
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="index.html" class="flex items-center space-x-3">
+        <img src="logo.png" class="w-8 h-8" alt="logo">
         <h1 class="text-xl md:text-2xl font-extrabold text-indigo-700">Project Data Flow Hub</h1>
+      </a>
+      <div class="text-sm text-gray-600 hidden md:block">
+        <span class="font-semibold">주영건설산업(주)</span>
       </div>
-      <a href="index.html" class="text-sm text-indigo-600 hover:underline">← 회사 메인으로</a>
     </div>
   </header>
 
+  <!-- API URL 저장 -->
   <main class="max-w-7xl mx-auto px-4 py-6">
     <div class="bg-white p-4 rounded-xl shadow mb-4">
       <label class="block text-sm font-semibold text-gray-700">Apps Script 웹앱 URL</label>
       <input id="apiBase" type="text" placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-             class="w-full mt-1 p-2 border rounded" />
-      <p class="text-xs text-gray-500 mt-1">* code.gs를 배포한 뒤 이 주소를 붙여넣고 저장하세요.</p>
+             class="w-full mt-1 p-2 border rounded"/>
+      <p class="text-xs text-gray-500 mt-1">* code.gs를 웹 앱으로 배포한 뒤 이 주소를 붙여넣고 저장하세요.</p>
       <div class="mt-2 flex items-center space-x-2">
         <button id="saveApi" class="bg-indigo-600 text-white px-3 py-1 rounded">주소 저장</button>
         <span id="apiSaved" class="text-xs text-green-600"></span>
       </div>
     </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+    <!-- 탭 -->
+    <div class="grid grid-cols-2 sm:grid-cols-6 gap-2 mb-4">
       <button class="tab-btn bg-indigo-600 text-white px-3 py-2 rounded" data-tab="projects">프로젝트</button>
       <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="personnel">인원</button>
       <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="materials">자재</button>
@@ -39,9 +46,23 @@
       <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="schedules">일정</button>
     </div>
 
+    <!-- 프로젝트 선택 + 요약 -->
+    <div class="bg-white p-4 rounded-xl shadow mb-4">
+      <div class="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-2 md:space-y-0">
+        <div class="flex-1">
+          <label class="block text-sm font-semibold text-gray-700">프로젝트 선택</label>
+          <select id="projectSelect" class="w-full mt-1 p-2 border rounded"></select>
+        </div>
+        <button id="refreshReport" class="bg-gray-100 border px-3 py-2 rounded">요약 새로고침</button>
+      </div>
+      <div id="summary" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4"></div>
+    </div>
+
+    <!-- 테이블 영역 -->
     <section id="view" class="bg-white rounded-xl shadow p-4"></section>
   </main>
 
+  <!-- 공통 템플릿 -->
   <template id="tableTemplate">
     <div>
       <div class="flex justify-between items-center mb-3">
@@ -61,49 +82,79 @@
   </template>
 
   <script>
+    // === 시트 스키마 ===
     const SHEETS = {
-      projects: { label: "프로젝트", headers: ["id","name","budget","startDate","endDate","owner","description"] },
-      personnel: { label: "인원", headers: ["id","name","role","unitCost","contact"] },
-      materials: { label: "자재", headers: ["id","name","unit","unitPrice","supplier"] },
-      outsourcing: { label: "외주", headers: ["id","company","serviceType","contractValue","period"] },
-      costs: { label: "비용", headers: ["id","projectId","date","category","item","amount","paidStatus"] },
-      schedules: { label: "일정", headers: ["id","projectId","taskName","startDate","endDate","isCompleted"] },
+      projects:  { label:"프로젝트", headers:["id","name","budget","startDate","endDate","owner","description","createdAt"] },
+      personnel: { label:"인원",     headers:["id","name","role","unitCost","contact","createdAt"] },
+      materials: { label:"자재",     headers:["id","name","unit","unitPrice","supplier","createdAt"] },
+      outsourcing:{label:"외주",     headers:["id","company","serviceType","contractValue","period","createdAt"] },
+      costs:     { label:"비용",     headers:["id","projectId","date","category","item","amount","paidStatus","createdAt"] },
+      schedules: { label:"일정",     headers:["id","projectId","taskName","startDate","endDate","isCompleted","createdAt"] },
     };
 
+    // === 상태 ===
     const view = document.getElementById('view');
     const apiInput = document.getElementById('apiBase');
     const saveApiBtn = document.getElementById('saveApi');
     const apiSaved = document.getElementById('apiSaved');
+    const projectSelect = document.getElementById('projectSelect');
+    const summary = document.getElementById('summary');
 
-    // Persist API URL locally
     apiInput.value = localStorage.getItem('SHEETS_API_URL') || "";
     saveApiBtn.onclick = () => {
       localStorage.setItem('SHEETS_API_URL', apiInput.value.trim());
       apiSaved.textContent = "저장됨";
       setTimeout(()=> apiSaved.textContent="", 1500);
+      loadProjects();
     };
 
-    // Tab handling
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
     let currentSheet = 'projects';
     switchTab('projects');
+    loadProjects();
 
-    async function switchTab(sheetKey) {
-      currentSheet = sheetKey;
-      document.querySelectorAll('.tab-btn').forEach(b => {
-        b.classList.toggle('bg-indigo-600', b.dataset.tab===sheetKey);
-        b.classList.toggle('text-white', b.dataset.tab===sheetKey);
-        b.classList.toggle('bg-white', b.dataset.tab!==sheetKey);
-        b.classList.toggle('border', b.dataset.tab!==sheetKey);
+    document.getElementById('refreshReport').onclick = () => refreshSummary();
+
+    // === 공통 API ===
+    async function api(action, payload){
+      const url = localStorage.getItem('SHEETS_API_URL') || apiInput.value.trim();
+      if (!url) { alert('먼저 Apps Script 웹앱 URL을 입력/저장하세요.'); throw new Error('No API URL'); }
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ action, ...payload })
       });
-      renderTable(sheetKey);
+      const text = await res.text();
+      try { return JSON.parse(text); } catch(e){ return {error:text}; }
+    }
+
+    // === 프로젝트 목록 + 셀렉트 ===
+    async function loadProjects(){
+      const rows = await api('read', { sheet:'projects' });
+      const list = Array.isArray(rows) ? rows : [];
+      projectSelect.innerHTML = `<option value="">-- 프로젝트 선택 --</option>` +
+        list.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    }
+
+    // === 탭 전환 ===
+    async function switchTab(sheetKey){
+      currentSheet = sheetKey;
+      document.querySelectorAll('.tab-btn').forEach(b=>{
+        const active = (b.dataset.tab===sheetKey);
+        b.classList.toggle('bg-indigo-600',active);
+        b.classList.toggle('text-white',active);
+        b.classList.toggle('bg-white',!active);
+        b.classList.toggle('border',!active);
+      });
+      await renderTable(sheetKey);
     }
 
     function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
 
+    // === 테이블 렌더 ===
     async function renderTable(sheetKey){
       const tpl = document.getElementById('tableTemplate').content.cloneNode(true);
       tpl.getElementById('sheetTitle').textContent = SHEETS[sheetKey].label;
@@ -112,14 +163,16 @@
 
       const thead = tpl.getElementById('dataTable').querySelector('thead');
       const tbody = tpl.getElementById('dataTable').querySelector('tbody');
-      thead.innerHTML = "<tr>"+SHEETS[sheetKey].headers.map(h=>`<th class='text-left px-3 py-2 bg-gray-50'>${h}</th>`).join('')+"<th class='px-3 py-2 bg-gray-50 text-right'>액션</th></tr>";
+      const headers = SHEETS[sheetKey].headers;
+      thead.innerHTML = "<tr>"+ headers.map(h=>`<th class='text-left px-3 py-2 bg-gray-50'>${h}</th>`).join('')
+        + "<th class='px-3 py-2 bg-gray-50 text-right'>액션</th></tr>";
 
       const rows = await api('read', { sheet: sheetKey });
-      const asArray = Array.isArray(rows)? rows : (rows.error? []: []);
+      const asArray = Array.isArray(rows)? rows : [];
       tbody.innerHTML = '';
-      asArray.forEach(obj => {
+      asArray.forEach(obj=>{
         const tr = document.createElement('tr');
-        SHEETS[sheetKey].headers.forEach(h=>{
+        headers.forEach(h=>{
           tr.appendChild(el(`<td class="px-3 py-1 border-t">${(obj[h] ?? "")}</td>`));
         });
         const act = el(`<td class="px-3 py-1 border-t text-right space-x-2"></td>`);
@@ -130,6 +183,7 @@
           if(confirm('삭제하시겠습니까?')){
             await api('delete', { sheet: sheetKey, id: obj.id });
             renderTable(sheetKey);
+            if (sheetKey==='projects') loadProjects();
           }
         };
         act.append(editBtn, delBtn);
@@ -141,17 +195,42 @@
       view.appendChild(tpl);
     }
 
+    // === 모달 에디터 ===
     function openEditor(sheetKey, existing){
-      const headers = SHEETS[sheetKey].headers.filter(h=>h!=='id');
+      const all = SHEETS[sheetKey].headers;
+      // id/createdAt는 입력에서 제외
+      const headers = all.filter(h => !['id','createdAt'].includes(h));
       const wrapper = el(`<div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"></div>`);
-      const modal = el(`<div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-4"></div>`);
-      const title = el(`<h3 class="text-lg font-bold mb-3">${existing ? '항목 수정' : '새 항목 추가'}</h3>`);
+      const modal = el(`<div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-4"></div>`);
+      const title = el(`<h3 class="text-lg font-bold mb-3">${existing?'항목 수정':'새 항목 추가'}</h3>`);
       const form = document.createElement('form');
       form.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
 
       headers.forEach(h=>{
-        const input = el(`<div><label class="text-xs text-gray-500">${h}</label><input class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${existing ? (existing[h] ?? '') : ''}"></div>`);
-        form.appendChild(input);
+        // projectId 필드는 select로 제공
+        if (h==='projectId'){
+          const field = el(`<div><label class="text-xs text-gray-500">${h}</label>
+            <select name="projectId" class="w-full border rounded px-2 py-1 mt-1"></select></div>`);
+          form.appendChild(field);
+          // 프로젝트 옵션 채우기
+          api('read',{sheet:'projects'}).then(list=>{
+            const sel = field.querySelector('select');
+            sel.innerHTML = `<option value="">선택</option>` + (list||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+            sel.value = existing ? (existing[h]||'') : '';
+          });
+        }else if(h==='isCompleted'){
+          const field = el(`<div><label class="text-xs text-gray-500">isCompleted</label>
+            <select name="isCompleted" class="w-full border rounded px-2 py-1 mt-1">
+              <option value="false">false</option>
+              <option value="true">true</option>
+            </select></div>`);
+          if(existing) field.querySelector('select').value = String(existing[h]||'false');
+          form.appendChild(field);
+        }else{
+          const val = existing ? (existing[h] ?? '') : '';
+          form.appendChild(el(`<div><label class="text-xs text-gray-500">${h}</label>
+            <input class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${val}"></div>`));
+        }
       });
 
       const btns = el(`<div class="md:col-span-2 flex justify-end space-x-2 mt-2"></div>`);
@@ -164,6 +243,10 @@
       form.onsubmit = async (e)=>{
         e.preventDefault();
         const data = Object.fromEntries(new FormData(form).entries());
+        // 숫자 필드 간단 처리
+        ['budget','unitCost','unitPrice','contractValue','amount'].forEach(k=>{
+          if (k in data) data[k] = data[k] ? Number(data[k]) : "";
+        });
         if(existing){
           await api('update', { sheet: sheetKey, id: existing.id, record: data });
         }else{
@@ -171,6 +254,7 @@
         }
         wrapper.remove();
         renderTable(sheetKey);
+        if (sheetKey==='projects'){ await loadProjects(); await refreshSummary(); }
       };
 
       modal.append(title, form);
@@ -178,17 +262,38 @@
       document.body.appendChild(wrapper);
     }
 
-    async function api(action, payload){
-      const url = localStorage.getItem('SHEETS_API_URL') || apiInput.value.trim();
-      if(!url){ alert('먼저 Apps Script 웹앱 URL을 입력/저장하세요.'); throw new Error('No API URL'); }
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, ...payload })
+    // === 요약(일간) ===
+    async function refreshSummary(){
+      const pid = projectSelect.value;
+      if(!pid){ summary.innerHTML = `<div class="text-gray-500 text-sm">프로젝트를 먼저 선택하세요.</div>`; return; }
+      const data = await api('dailyReport', { projectId: pid });
+      // 합계
+      let totalCost=0, totalIncome=0, totalPaid=0, totalUnpaid=0;
+      Object.values(data||{}).forEach(d=>{
+        totalCost+=d.totalCost||0; totalIncome+=d.totalIncome||0;
+        totalPaid+=d.totalPaid||0; totalUnpaid+=d.totalUnpaid||0;
       });
-      const text = await res.text();
-      try { return JSON.parse(text); } catch(e){ return text; }
+      const net = totalIncome - totalCost;
+      summary.innerHTML = `
+        <div class="p-4 rounded-lg border bg-red-50">
+          <div class="text-xs text-gray-500">총 비용</div>
+          <div class="text-2xl font-extrabold text-red-700">${fmt(totalCost)} 원</div>
+          <div class="text-xs text-gray-600">지급완료 ${fmt(totalPaid)} / 미지급 ${fmt(totalUnpaid)}</div>
+        </div>
+        <div class="p-4 rounded-lg border bg-blue-50">
+          <div class="text-xs text-gray-500">총 수입</div>
+          <div class="text-2xl font-extrabold text-blue-700">${fmt(totalIncome)} 원</div>
+        </div>
+        <div class="p-4 rounded-lg border ${net>=0?'bg-green-50':'bg-orange-50'}">
+          <div class="text-xs text-gray-500">순이익</div>
+          <div class="text-2xl font-extrabold ${net>=0?'text-green-700':'text-orange-700'}">${fmt(net)} 원</div>
+        </div>
+      `;
     }
+    function fmt(n){ return (Number(n)||0).toLocaleString('ko-KR'); }
+
+    // 프로젝트 바뀔 때 요약 갱신
+    projectSelect.addEventListener('change', refreshSummary);
   </script>
 </body>
 </html>
