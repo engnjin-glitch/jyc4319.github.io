@@ -227,6 +227,47 @@ async function initializeFirebase() {
 }
 </script>
 
+  <script>
+/* ===============================
+   🧠 Google Sheets Adapter
+   =============================== */
+
+const SHEETS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzaKNWodt-9RbMwaLJKu4RyBEm0lwcmJcjtWyGPXLdO-ZYPQxafrIttzw6bPWsbBFZX/exec"; 
+// 예: https://script.google.com/macros/s/AKfycbyA.../exec
+
+async function sheetAPI(action, sheetName, data = {}) {
+  try {
+    const response = await fetch(SHEETS_WEBAPP_URL, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, sheetName, data })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("시트 통신 오류:", error);
+    alert("데이터 통신 중 오류가 발생했습니다. (인터넷 연결 또는 스크립트 URL 확인)");
+  }
+}
+
+// 🟢 예시 사용법 (기본 CRUD)
+async function loadProjects() {
+  const result = await sheetAPI("read", "projects");
+  console.log("📂 프로젝트 목록:", result);
+}
+
+async function addProject(name, budget, startDate, endDate) {
+  const newProject = { name, budget, startDate, endDate };
+  const result = await sheetAPI("create", "projects", newProject);
+  console.log("✅ 새 프로젝트 저장:", result);
+}
+
+async function deleteProject(id) {
+  const result = await sheetAPI("delete", "projects", { id });
+  console.log("🗑️ 삭제 완료:", result);
+}
+</script>
+
   
 </body>
 </html>
