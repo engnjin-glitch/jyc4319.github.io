@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Data Flow Hub (Sheets DB)</title>
+  <link rel="icon" href="logo.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+  <header class="bg-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <img src="logo.svg" alt="logo" class="w-7 h-7" />
+        <h1 class="text-xl md:text-2xl font-extrabold text-indigo-700">Project Data Flow Hub</h1>
+      </div>
+      <a href="index.html" class="text-sm text-indigo-600 hover:underline">← 회사 메인으로</a>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="bg-white p-4 rounded-xl shadow mb-4">
+      <label class="block text-sm font-semibold text-gray-700">Apps Script 웹앱 URL</label>
+      <input id="apiBase" type="text" placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+             class="w-full mt-1 p-2 border rounded" />
+      <p class="text-xs text-gray-500 mt-1">* code.gs를 배포한 뒤 이 주소를 붙여넣고 저장하세요.</p>
+      <div class="mt-2 flex items-center space-x-2">
+        <button id="saveApi" class="bg-indigo-600 text-white px-3 py-1 rounded">주소 저장</button>
+        <span id="apiSaved" class="text-xs text-green-600"></span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+      <button class="tab-btn bg-indigo-600 text-white px-3 py-2 rounded" data-tab="projects">프로젝트</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="personnel">인원</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="materials">자재</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="outsourcing">외주</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="costs">비용</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="schedules">일정</button>
+    </div>
+
+    <section id="view" class="bg-white rounded-xl shadow p-4"></section>
+  </main>
+
+  <template id="tableTemplate">
+    <div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-bold" id="sheetTitle"></h2>
+        <div class="space-x-2">
+          <button id="reloadBtn" class="text-sm bg-gray-100 px-3 py-1 rounded border">새로고침</button>
+          <button id="addBtn" class="text-sm bg-indigo-600 text-white px-3 py-1 rounded">새로 추가</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const SHEETS = {
+      projects: { label: "프로젝트", headers: ["id","name","budget","startDate","endDate","owner","description"] },
+      personnel: { label: "인원", headers: ["id","name","role","unitCost","contact"] },
+      materials: { label: "자재", headers: ["id","name","unit","unitPrice","supplier"] },
+      outsourcing: { label: "외주", headers: ["id","company","serviceType","contractValue","period"] },
+      costs: { label: "비용", headers: ["id","projectId","date","category","item","amount","paidStatus"] },
+      schedules: { label: "일정", headers: ["id","projectId","taskName","startDate","endDate","isCompleted"] },
+    };
+
+    const view = document.getElementById('view');
+    const apiInput = document.getElementById('apiBase');
+    const saveApiBtn = document.getElementById('saveApi');
+    const apiSaved = document.getElementById('apiSaved');
+
+    // Persist API URL locally
+    apiInput.value = localStorage.getItem('SHEETS_API_URL') || "";
+    saveApiBtn.onclick = () => {
+      localStorage.setItem('SHEETS_API_URL', apiInput.value.trim());
+      apiSaved.textContent = "저장됨";
+      setTimeout(()=> apiSaved.textContent="", 1500);
+    };
+
+    // Tab handling
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    let currentSheet = 'projects';
+    switchTab('projects');
+
+    async function switchTab(sheetKey) {
+      currentSheet = sheetKey;
+      document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.toggle('bg-indigo-600', b.dataset.tab===sheetKey);
+        b.classList.toggle('text-white', b.dataset.tab===sheetKey);
+        b.classList.toggle('bg-white', b.dataset.tab!==sheetKey);
+        b.classList.toggle('border', b.dataset.tab!==sheetKey);
+      });
+      renderTable(sheetKey);
+    }
+
+    function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstChild; }
+
+    async function renderTable(sheetKey){
+      const tpl = document.getElementById('tableTemplate').content.cloneNode(true);
+      tpl.getElementById('sheetTitle').textContent = SHEETS[sheetKey].label;
+      tpl.getElementById('reloadBtn').onclick = () => renderTable(sheetKey);
+      tpl.getElementById('addBtn').onclick = () => openEditor(sheetKey);
+
+      const thead = tpl.getElementById('dataTable').querySelector('thead');
+      const tbody = tpl.getElementById('dataTable').querySelector('tbody');
+      thead.innerHTML = "<tr>"+SHEETS[sheetKey].headers.map(h=>`<th class='text-left px-3 py-2 bg-gray-50'>${h}</th>`).join('')+"<th class='px-3 py-2 bg-gray-50 text-right'>액션</th></tr>";
+
+      const rows = await api('read', { sheet: sheetKey });
+      const asArray = Array.isArray(rows)? rows : (rows.error? []: []);
+      tbody.innerHTML = '';
+      asArray.forEach(obj => {
+        const tr = document.createElement('tr');
+        SHEETS[sheetKey].headers.forEach(h=>{
+          tr.appendChild(el(`<td class="px-3 py-1 border-t">${(obj[h] ?? "")}</td>`));
+        });
+        const act = el(`<td class="px-3 py-1 border-t text-right space-x-2"></td>`);
+        const editBtn = el(`<button class="text-xs px-2 py-1 bg-gray-100 rounded border">수정</button>`);
+        const delBtn = el(`<button class="text-xs px-2 py-1 bg-red-600 text-white rounded">삭제</button>`);
+        editBtn.onclick = () => openEditor(sheetKey, obj);
+        delBtn.onclick = async () => {
+          if(confirm('삭제하시겠습니까?')){
+            await api('delete', { sheet: sheetKey, id: obj.id });
+            renderTable(sheetKey);
+          }
+        };
+        act.append(editBtn, delBtn);
+        tr.appendChild(act);
+        tbody.appendChild(tr);
+      });
+
+      view.innerHTML = '';
+      view.appendChild(tpl);
+    }
+
+    function openEditor(sheetKey, existing){
+      const headers = SHEETS[sheetKey].headers.filter(h=>h!=='id');
+      const wrapper = el(`<div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"></div>`);
+      const modal = el(`<div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-4"></div>`);
+      const title = el(`<h3 class="text-lg font-bold mb-3">${existing ? '항목 수정' : '새 항목 추가'}</h3>`);
+      const form = document.createElement('form');
+      form.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+      headers.forEach(h=>{
+        const input = el(`<div><label class="text-xs text-gray-500">${h}</label><input class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${existing ? (existing[h] ?? '') : ''}"></div>`);
+        form.appendChild(input);
+      });
+
+      const btns = el(`<div class="md:col-span-2 flex justify-end space-x-2 mt-2"></div>`);
+      const save = el(`<button class="bg-indigo-600 text-white px-3 py-1 rounded" type="submit">저장</button>`);
+      const cancel = el(`<button class="bg-gray-100 px-3 py-1 rounded border" type="button">취소</button>`);
+      cancel.onclick = ()=> wrapper.remove();
+      btns.append(save, cancel);
+      form.appendChild(btns);
+
+      form.onsubmit = async (e)=>{
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        if(existing){
+          await api('update', { sheet: sheetKey, id: existing.id, record: data });
+        }else{
+          await api('create', { sheet: sheetKey, record: data });
+        }
+        wrapper.remove();
+        renderTable(sheetKey);
+      };
+
+      modal.append(title, form);
+      wrapper.appendChild(modal);
+      document.body.appendChild(wrapper);
+    }
+
+    async function api(action, payload){
+      const url = localStorage.getItem('SHEETS_API_URL') || apiInput.value.trim();
+      if(!url){ alert('먼저 Apps Script 웹앱 URL을 입력/저장하세요.'); throw new Error('No API URL'); }
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...payload })
+      });
+      const text = await res.text();
+      try { return JSON.parse(text); } catch(e){ return text; }
+    }
+  </script>
+</body>
+</html>
