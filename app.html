@@ -2,201 +2,597 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>고급 프로젝트 비용 및 진척 관리 시스템</title>
+  <title>고급 프로젝트 비용 및 진척 관리 시스템 (Sheets 연동 완전판)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="icon" href="logo.svg" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family:'Inter', sans-serif; background-color:#f7f9fb; }
-    .main-nav-button { transition: all 0.3s ease; }
-    .main-nav-button.active {
-      background-color:#4f46e5; color:white; transform: translateY(-2px);
-    }
-    .overflow-y-scroll::-webkit-scrollbar { width:8px; }
-    .overflow-y-scroll::-webkit-scrollbar-track { background:#f1f1f1; }
-    .overflow-y-scroll::-webkit-scrollbar-thumb { background:#bbb; border-radius:4px; }
-    .overflow-y-scroll::-webkit-scrollbar-thumb:hover { background:#888; }
-    @media (max-width:768px) {
-      #mainLayout { flex-direction:column; }
-      #sidebar { width:100%; border-right:none; border-bottom:1px solid #e5e7eb; }
-      #sidebar h2 { display:none; }
-      #projectList { max-height:150px; overflow-y:auto; display:flex; flex-wrap:wrap; }
-      #projectList li { width:50%; padding:0.5rem; }
-      #projectList li.font-semibold { background-color:#eef2ff; }
-    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; background:#f7f9fb;}
+    .main-nav-button { transition:.2s; box-shadow:0 2px 4px rgba(0,0,0,.06); }
+    .main-nav-button.active { background:#4f46e5; color:#fff; transform: translateY(-1px); }
+    .table-th { background:#f8fafc; font-size:12px; letter-spacing:.02em; text-transform:uppercase; color:#64748b}
+    .pill { font-size:12px; padding:.15rem .5rem; border-radius:999px; }
   </style>
 </head>
 <body>
 
-  <header class="bg-white shadow-xl sticky top-0 z-10">
-    <div class="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center border-b border-gray-100">
-      <h1 class="text-3xl font-black text-indigo-700">Project <span class="text-pink-500">Data Flow</span> Hub</h1>
-      <div class="text-sm text-gray-500 hidden md:block">
-        <span class="font-semibold">줴영건설산업(주)</span>
+  <!-- 헤더 -->
+  <header class="bg-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <img src="logo.svg" alt="logo" class="w-8 h-8">
+        <h1 class="text-xl md:text-2xl font-extrabold text-indigo-700">Project <span class="text-pink-500">Data Flow</span> Hub</h1>
       </div>
-    </div>
-    <div class="flex justify-center p-3 bg-indigo-50 border-t border-indigo-100 shadow-inner">
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold active" data-tab="dailyLog">🗓️ 일일 기록 / 입력</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="master">⚙️ 마스터 데이터 관리</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="reports">📊 보고서 / 현황</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="schedule">🗓️ 일정 / 간트</button>
+      <a href="index.html" class="text-sm text-indigo-600 hover:underline">← 회사 메인으로</a>
     </div>
   </header>
 
-  <div id="messageBox" class="fixed top-20 right-5 z-50"></div>
-
-  <div id="loadingIndicator" class="flex justify-center items-center h-[80vh]">
-    <div class="flex flex-col items-center p-8 bg-white rounded-xl shadow-2xl">
-      <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-500"></div>
-      <p class="mt-4 text-xl text-indigo-600 font-bold">시스템 초기화 및 데이터 로딩 중...</p>
+  <!-- API URL 저장 -->
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="bg-white rounded-xl shadow p-4 mb-4">
+      <label class="block text-sm font-semibold text-gray-700">Apps Script 웹앱 URL</label>
+      <div class="flex gap-2 mt-2">
+        <input id="apiBase" type="text" class="flex-1 p-2 border rounded"
+               placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+        <button id="saveApi" class="bg-indigo-600 text-white px-4 rounded">주소 저장</button>
+      </div>
+      <p class="text-xs text-gray-500 mt-1">배포한 웹앱 URL을 여기 넣고 “주소 저장”을 눌러주세요.</p>
+      <div id="flash" class="text-xs mt-1"></div>
     </div>
-  </div>
 
-  <main id="mainContent" class="hidden max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <div id="mainLayout" class="flex">
-      <aside id="sidebar" class="w-full md:w-64 bg-white p-0 shadow-lg md:shadow-xl rounded-xl mr-4 overflow-hidden h-fit md:h-auto sticky top-40 z-0">
-        <h2 class="text-xl font-bold text-gray-700 p-4 border-b border-gray-200 bg-gray-50 hidden md:block">🛠️ 프로젝트 선택</h2>
-        <ul id="projectList" class="divide-y divide-gray-100 overflow-y-scroll max-h-[40vh] md:max-h-[70vh]"></ul>
-      </aside>
-      <section id="contentArea" class="flex-1 w-full bg-white p-6 md:p-8 rounded-xl shadow-xl">
-        <!-- 탭 내용이 여기 렌더됩니다 -->
-      </section>
+    <!-- 탭 버튼 -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+      <button class="main-nav-button px-3 py-2 rounded active" data-tab="dailyLog">🗓️ 일일 기록 / 입력</button>
+      <button class="main-nav-button px-3 py-2 rounded" data-tab="master">⚙️ 마스터 데이터 관리</button>
+      <button class="main-nav-button px-3 py-2 rounded" data-tab="reports">📊 보고서 / 현황</button>
+      <button class="main-nav-button px-3 py-2 rounded" data-tab="schedule">🗓️ 일정 / 간트</button>
+      <button class="main-nav-button px-3 py-2 rounded" data-tab="help">❓ 사용법</button>
+      <button class="main-nav-button px-3 py-2 rounded" data-tab="about">🏢 회사 정보</button>
     </div>
+
+    <!-- 컨텐츠 -->
+    <section id="view" class="bg-white rounded-xl shadow p-4"></section>
   </main>
 
+  <!-- 공용 템플릿: 표 형태 -->
+  <template id="tableTemplate">
+    <div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-bold" id="sheetTitle"></h2>
+        <div class="flex gap-2">
+          <button id="reloadBtn" class="text-sm bg-gray-100 px-3 py-1 rounded border">새로고침</button>
+          <button id="addBtn" class="text-sm bg-indigo-600 text-white px-3 py-1 rounded">새로 추가</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
+
   <script>
-    /** ===== 설정 ===== **/
-    const API_URL_INPUT_ID = 'apiBaseInput';  // 만약 입력칸을 따로 만들면 이 ID 사용
-    let API_BASE_URL = '';
-
-    // 시트 스키마 (app.html 구조와 동일)
+    /***********************
+     * 1) 시트 메타 정보
+     ***********************/
     const SHEETS = {
-      projects:    { label:"프로젝트",     headers:["id","name","budget","startDate","endDate","owner","description"] },
-      personnel:   { label:"인원",         headers:["id","name","role","unitCost","contact"] },
-      materials:   { label:"자재",         headers:["id","name","unit","unitPrice","supplier"] },
-      outsourcing: { label:"외주",         headers:["id","company","serviceType","contractValue","period"] },
-      costs:       { label:"비용",         headers:["id","projectId","date","category","item","amount","paidStatus"] },
-      schedules:   { label:"일정",         headers:["id","projectId","taskName","startDate","endDate","isCompleted"] },
+      projects:   { label: "프로젝트", headers: ["id","name","budget","startDate","endDate","owner","description"] },
+      personnel:  { label: "인원",     headers: ["id","name","role","unitCost","contact"] },
+      materials:  { label: "자재",     headers: ["id","name","unit","unitPrice","supplier"] },
+      outsourcing:{ label: "외주",     headers: ["id","name","serviceType","contractValue","period"] },
+      costItems:  { label: "비용항목", headers: ["id","name","category","description"] },
+      dailyLogs:  { label: "일일기록", headers: ["id","projectId","logDate","type","resourceId","paymentStatus","personCount","equipmentCount","materialQuantity","paymentAmount","amount","content"] },
+      schedules:  { label: "일정",     headers: ["id","projectId","taskName","startDate","endDate","isCompleted"] },
     };
 
-    let state = {
-      selectedProjectId: null,
-      activeTab: 'dailyLog',
-      masterSubTab: 'projects',
-      reportSubTab: 'daily',
-      dailyLogSubTab: 'manpower',
-      projects: [],
-      masterData: {
-        personnel: [], materials: [], outsourcing: [], costItems: []
-      },
-      dailyLogs: [],
-      schedules: []
-    };
+    /***********************
+     * 2) 유틸
+     ***********************/
+    const view   = document.getElementById('view');
+    const apiInp = document.getElementById('apiBase');
+    const flash  = document.getElementById('flash');
 
-    // 유틸 함수
-    function showMessage(msg, isError = false) {
-      const box = document.getElementById('messageBox');
-      box.textContent = msg;
-      box.className = `fixed top-20 right-5 z-50 p-3 rounded-xl shadow-2xl ${isError?'bg-red-600 text-white':'bg-green-600 text-white'}`;
-      setTimeout(()=>{
-        box.textContent = '';
-        box.className = 'fixed top-20 right-5 z-50';
-      }, 3000);
+    const el = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+    const money = n => (Number(n||0)).toLocaleString('ko-KR');
+    const today = () => new Date().toISOString().slice(0,10);
+    const uuid  = () => 'xxxxxx'.replace(/x/g, ()=>Math.floor(Math.random()*16).toString(16))+Date.now();
+
+    function showMsg(msg, ok=true){
+      flash.textContent = msg;
+      flash.className = 'text-xs mt-1 ' + (ok ? 'text-green-600':'text-red-600');
+      setTimeout(()=>flash.textContent='', 2000);
     }
 
-    async function apiCall(action, payload) {
-      if (!API_BASE_URL) {
-        showMessage('API 주소가 설정되지 않았습니다.', true);
-        throw 'API_BASE_URL empty';
-      }
-      const res = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
+    // API URL 저장
+    apiInp.value = localStorage.getItem('SHEETS_API_URL') || '';
+    document.getElementById('saveApi').onclick = () => {
+      localStorage.setItem('SHEETS_API_URL', apiInp.value.trim());
+      showMsg('저장됨 👍');
+    };
+
+    async function api(action, payload){
+      const url = (localStorage.getItem('SHEETS_API_URL') || '').trim();
+      if(!url){ alert('먼저 위에 웹앱 URL을 저장하세요!'); throw new Error('No API URL'); }
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ action, ...payload })
       });
       const txt = await res.text();
-      try { return JSON.parse(txt); } catch(e) { return { error: txt }; }
+      try{ return JSON.parse(txt); }catch{ return {error:txt}; }
     }
 
-    // 프로젝트 목록 로드
-    async function loadProjects() {
-      const rows = await apiCall('read', { sheet:'projects' });
-      state.projects = Array.isArray(rows)?rows: [];
-      renderApp();
-    }
-
-    // 탭 전환
-    function switchTab(tabKey) {
-      state.activeTab = tabKey;
-      document.querySelectorAll('.main-nav-button').forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-tab')===tabKey);
-      });
-      renderApp();
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // API 입력창이 있다면
-      const input = document.getElementById(API_URL_INPUT_ID);
-      if (input) {
-        input.value = localStorage.getItem('API_BASE_URL') || '';
-        input.addEventListener('change', ()=>{
-          localStorage.setItem('API_BASE_URL', input.value.trim());
-          API_BASE_URL = input.value.trim();
-          showMessage('API 주소 저장됨');
-          loadProjects();
-        });
-        API_BASE_URL = input.value.trim();
-      }
-
-      document.querySelectorAll('.main-nav-button').forEach(btn=>{
-        btn.addEventListener('click', ()=> switchTab(btn.getAttribute('data-tab')));
-      });
-
-      loadProjects().then(()=>{
-        document.getElementById('loadingIndicator').classList.add('hidden');
-        document.getElementById('mainContent').classList.remove('hidden');
-      }).catch(err=>{
-        showMessage('데이터 로드 실패: '+err, true);
-        document.getElementById('loadingIndicator').classList.add('hidden');
+    /***********************
+     * 3) 탭 라우팅
+     ***********************/
+    document.querySelectorAll('.main-nav-button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('.main-nav-button').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        if(tab==='master') renderMaster();
+        if(tab==='dailyLog') renderDaily();
+        if(tab==='schedule') renderSchedule();
+        if(tab==='reports') renderReports();
+        if(tab==='help') renderHelp();
+        if(tab==='about') renderAbout();
       });
     });
 
-    function renderProjectSidebar() {
-      const ul = document.getElementById('projectList');
-      ul.innerHTML = '';
-      if (!state.projects.length) {
-        ul.innerHTML = '<li class="p-4 text-sm text-gray-500">등록된 프로젝트가 없습니다.</li>';
-      } else {
-        state.projects.forEach(proj=>{
-          const li = document.createElement('li');
-          li.textContent = proj.name || '(이름 없음)';
-          li.className = `cursor-pointer p-3 transition duration-200 ${state.selectedProjectId===proj.id?'bg-indigo-100 font-semibold':'hover:bg-gray-50'}`;
-          li.onclick = ()=> {
-            state.selectedProjectId = proj.id;
-            renderApp();
+    // 최초: 일일기록 탭
+    renderDaily();
+
+    /***********************
+     * 4) 공용 테이블 렌더러
+     ***********************/
+    async function renderTable(sheetKey, opts={}){
+      const tpl = document.getElementById('tableTemplate').content.cloneNode(true);
+      tpl.getElementById('sheetTitle').textContent = SHEETS[sheetKey].label;
+      tpl.getElementById('reloadBtn').onclick = () => renderTable(sheetKey, opts);
+      tpl.getElementById('addBtn').onclick = () => openEditor(sheetKey, null, opts);
+
+      const thead = tpl.getElementById('dataTable').querySelector('thead');
+      const tbody = tpl.getElementById('dataTable').querySelector('tbody');
+
+      thead.innerHTML =
+        `<tr>${SHEETS[sheetKey].headers.map(h=>`<th class="table-th px-3 py-2 text-left">${h}</th>`).join('')}
+          <th class="table-th px-3 py-2 text-right">액션</th></tr>`;
+
+      const rows = await api('read', { sheet: sheetKey, query: opts.query || null });
+      const data = Array.isArray(rows) ? rows : [];
+      tbody.innerHTML = '';
+      data.forEach(obj=>{
+        const tr = document.createElement('tr');
+        SHEETS[sheetKey].headers.forEach(h=>{
+          let val = obj[h] ?? '';
+          if(h==='isCompleted') val = val ? '✅' : '';
+          tr.appendChild(el(`<td class="px-3 py-2 border-t">${val}</td>`));
+        });
+        const act = el(`<td class="px-3 py-2 border-t text-right space-x-2"></td>`);
+        const eBtn = el(`<button class="text-xs px-2 py-1 bg-gray-100 rounded border">수정</button>`);
+        const dBtn = el(`<button class="text-xs px-2 py-1 bg-red-600 text-white rounded">삭제</button>`);
+        eBtn.onclick = ()=> openEditor(sheetKey, obj, opts);
+        dBtn.onclick = async ()=>{
+          if(confirm('삭제하시겠어요?')){
+            await api('delete', { sheet: sheetKey, id: obj.id });
+            renderTable(sheetKey, opts);
+          }
+        };
+        act.append(eBtn, dBtn);
+        tr.appendChild(act);
+        tbody.appendChild(tr);
+      });
+
+      view.innerHTML = '';
+      view.appendChild(tpl);
+    }
+
+    function openEditor(sheetKey, existing, opts={}){
+      const headers = SHEETS[sheetKey].headers.filter(h => h!=='id');
+      const wrap = el(`<div class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"></div>`);
+      const box  = el(`<div class="bg-white rounded-xl shadow-xl w-full max-w-xl p-4"></div>`);
+      box.appendChild(el(`<h3 class="text-lg font-bold mb-3">${existing?'수정':'새 항목 추가'} — ${SHEETS[sheetKey].label}</h3>`));
+      const form = el(`<form class="grid grid-cols-1 md:grid-cols-2 gap-3"></form>`);
+
+      headers.forEach(h=>{
+        const v = existing ? (existing[h] ?? '') : (h==='logDate' ? today() : '');
+        form.appendChild(el(`<div><label class="text-xs text-gray-500">${h}</label>
+            <input name="${h}" value="${v}" class="w-full border rounded px-2 py-1 mt-1"></div>`));
+      });
+
+      // 버튼들
+      const row = el(`<div class="md:col-span-2 flex justify-end gap-2 mt-2"></div>`);
+      const save= el(`<button class="bg-indigo-600 text-white px-3 py-1 rounded" type="submit">저장</button>`);
+      const cancel= el(`<button class="bg-gray-100 px-3 py-1 rounded border" type="button">취소</button>`);
+      cancel.onclick = ()=> wrap.remove();
+      row.append(save, cancel); form.appendChild(row);
+
+      form.onsubmit = async (e)=>{
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(form).entries());
+        // boolean 처리
+        if('isCompleted' in data){ data.isCompleted = (String(data.isCompleted).toLowerCase()==='true' || data.isCompleted==='1' || data.isCompleted==='✅'); }
+        if(existing){ await api('update', { sheet: sheetKey, id: existing.id, record: data }); }
+        else{ await api('create', { sheet: sheetKey, record: data }); }
+        wrap.remove();
+        renderTable(sheetKey, opts);
+      };
+
+      box.append(form); wrap.append(box); document.body.appendChild(wrap);
+    }
+
+    /***********************
+     * 5) 탭: 마스터
+     ***********************/
+    function renderMaster(){
+      // 작은 탭 버튼
+      const sub = el(`
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button class="pill bg-indigo-50 text-indigo-700"  data-s="projects">프로젝트</button>
+          <button class="pill bg-gray-100" data-s="personnel">인원</button>
+          <button class="pill bg-gray-100" data-s="materials">자재</button>
+          <button class="pill bg-gray-100" data-s="outsourcing">외주</button>
+          <button class="pill bg-gray-100" data-s="costItems">비용항목</button>
+        </div>
+      `);
+      const area = el(`<div></div>`);
+      view.innerHTML = '';
+      view.append(sub, area);
+
+      sub.querySelectorAll('button').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          sub.querySelectorAll('button').forEach(x=>x.className='pill bg-gray-100');
+          b.className='pill bg-indigo-50 text-indigo-700';
+          renderTable(b.dataset.s);
+        });
+      });
+      // 기본은 프로젝트 탭
+      renderTable('projects');
+    }
+
+    /***********************
+     * 6) 탭: 일일 기록
+     ***********************/
+    async function renderDaily(){
+      // 프로젝트 목록 불러오기 (드롭다운)
+      const projects = await api('read', { sheet:'projects' });
+      const projOpt = (projects||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+
+      const html = `
+        <div class="space-y-4">
+          <h2 class="text-lg font-bold">📅 일일 데이터 입력</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="text-xs text-gray-500">프로젝트</label>
+              <select id="dlProject" class="w-full border rounded px-2 py-2 mt-1">
+                <option value="">-- 선택 --</option>
+                ${projOpt}
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-500">날짜</label>
+              <input id="dlDate" type="date" value="${today()}" class="w-full border rounded px-2 py-2 mt-1">
+            </div>
+            <div class="flex items-end">
+              <button id="dlReload" class="w-full bg-gray-100 border rounded px-3 py-2">불러오기</button>
+            </div>
+          </div>
+
+          <div id="dlForms" class="space-y-6"></div>
+        </div>
+      `;
+      view.innerHTML = html;
+
+      document.getElementById('dlReload').onclick = loadDailyForms;
+      async function loadDailyForms(){
+        const projectId = document.getElementById('dlProject').value;
+        const logDate   = document.getElementById('dlDate').value;
+        if(!projectId || !logDate){ alert('프로젝트와 날짜를 선택하세요.'); return; }
+
+        // 마스터 읽기
+        const personnel = await api('read',{sheet:'personnel'});
+        const materials = await api('read',{sheet:'materials'});
+        const costItems = await api('read',{sheet:'costItems'});
+
+        const area = document.getElementById('dlForms');
+        area.innerHTML = '';
+
+        // 인원 투입
+        area.appendChild(el(`
+          <div class="bg-white border rounded-xl p-4">
+            <h3 class="font-bold mb-2">👷 인원 투입</h3>
+            <div class="grid md:grid-cols-4 gap-2">
+              <select id="p_sel" class="border rounded px-2 py-2">
+                <option value="">인원 선택</option>
+                ${(personnel||[]).map(p=>`<option value="${p.id}" data-cost="${p.unitCost||0}">${p.name} (${p.role||''})</option>`).join('')}
+              </select>
+              <input id="p_cnt" type="number" min="0" step="0.5" placeholder="명수" class="border rounded px-2 py-2">
+              <select id="p_pay" class="border rounded px-2 py-2">
+                <option value="미지급">미지급</option>
+                <option value="지급완료">지급완료</option>
+              </select>
+              <button id="p_save" class="bg-indigo-600 text-white rounded px-3">저장</button>
+            </div>
+          </div>
+        `));
+        document.getElementById('p_save').onclick = async ()=>{
+          const rid = document.getElementById('p_sel').value;
+          const cnt = document.getElementById('p_cnt').value;
+          const pay = document.getElementById('p_pay').value;
+          if(!rid || !cnt) return alert('인원과 수량을 입력하세요.');
+          await api('create', { sheet:'dailyLogs', record:{
+            projectId, logDate, type:'manpower', resourceId:rid, paymentStatus:pay, personCount:cnt
+          }});
+          showMsg('인원 저장 완료');
+        };
+
+        // 자재 사용
+        area.appendChild(el(`
+          <div class="bg-white border rounded-xl p-4">
+            <h3 class="font-bold mb-2">🏗️ 자재 사용</h3>
+            <div class="grid md:grid-cols-4 gap-2">
+              <select id="m_sel" class="border rounded px-2 py-2">
+                <option value="">자재 선택</option>
+                ${(materials||[]).map(m=>`<option value="${m.id}" data-price="${m.unitPrice||0}">${m.name} (${m.unit||''})</option>`).join('')}
+              </select>
+              <input id="m_qty" type="number" min="0" step="0.01" placeholder="수량" class="border rounded px-2 py-2">
+              <select id="m_pay" class="border rounded px-2 py-2">
+                <option value="미지급">미지급</option>
+                <option value="지급완료">지급완료</option>
+              </select>
+              <button id="m_save" class="bg-indigo-600 text-white rounded px-3">저장</button>
+            </div>
+          </div>
+        `));
+        document.getElementById('m_save').onclick = async ()=>{
+          const rid = document.getElementById('m_sel').value;
+          const qty = document.getElementById('m_qty').value;
+          const pay = document.getElementById('m_pay').value;
+          if(!rid || !qty) return alert('자재와 수량을 입력하세요.');
+          await api('create', { sheet:'dailyLogs', record:{
+            projectId, logDate, type:'materials', resourceId:rid, paymentStatus:pay, materialQuantity:qty
+          }});
+          showMsg('자재 저장 완료');
+        };
+
+        // 기타 비용/수입
+        area.appendChild(el(`
+          <div class="bg-white border rounded-xl p-4">
+            <h3 class="font-bold mb-2">💳 기타 비용/수입</h3>
+            <div class="grid md:grid-cols-5 gap-2">
+              <select id="c_sel" class="border rounded px-2 py-2">
+                <option value="">항목 선택</option>
+                ${(costItems||[]).map(c=>`<option value="${c.id}">${c.name} (${c.category||'기타'})</option>`).join('')}
+              </select>
+              <input id="c_amt" type="number" min="1" step="1" placeholder="금액(원)" class="border rounded px-2 py-2">
+              <select id="c_type" class="border rounded px-2 py-2">
+                <option value="expense">지출</option>
+                <option value="income">수입</option>
+              </select>
+              <select id="c_pay" class="border rounded px-2 py-2">
+                <option value="미지급">미지급</option>
+                <option value="지급완료">지급완료</option>
+              </select>
+              <button id="c_save" class="bg-indigo-600 text-white rounded px-3">저장</button>
+            </div>
+          </div>
+        `));
+        document.getElementById('c_save').onclick = async ()=>{
+          const rid = document.getElementById('c_sel').value;
+          const amt = document.getElementById('c_amt').value;
+          const typ = document.getElementById('c_type').value;
+          const pay = document.getElementById('c_pay').value;
+          if(!rid || !amt) return alert('항목과 금액을 입력하세요.');
+          await api('create', { sheet:'dailyLogs', record:{
+            projectId, logDate, type:typ, resourceId:rid, paymentStatus:pay, amount:amt
+          }});
+          showMsg('기타 항목 저장 완료');
+        };
+
+        // 작업 일지
+        area.appendChild(el(`
+          <div class="bg-white border rounded-xl p-4">
+            <h3 class="font-bold mb-2">📝 작업 일지</h3>
+            <textarea id="w_txt" rows="5" class="w-full border rounded px-2 py-2" placeholder="오늘 한 일, 특이사항 등을 적어주세요."></textarea>
+            <div class="text-right mt-2">
+              <button id="w_save" class="bg-orange-500 text-white rounded px-3">저장</button>
+            </div>
+          </div>
+        `));
+        document.getElementById('w_save').onclick = async ()=>{
+          const content = document.getElementById('w_txt').value.trim();
+          if(!content) return alert('내용을 입력하세요.');
+          await api('create',{ sheet:'dailyLogs', record: { projectId, logDate, type:'worklog', content }});
+          showMsg('작업 일지 저장 완료');
+        };
+      }
+    }
+
+    /***********************
+     * 7) 탭: 일정/간트
+     ***********************/
+    async function renderSchedule(){
+      const projects = await api('read', {sheet:'projects'});
+      const projOpt = (projects||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      view.innerHTML = `
+        <div class="space-y-4">
+          <h2 class="text-lg font-bold">🗓️ 일정 관리</h2>
+          <div class="grid md:grid-cols-5 gap-2">
+            <select id="sch_proj" class="border rounded px-2 py-2"><option value="">프로젝트</option>${projOpt}</select>
+            <input id="sch_name" placeholder="업무명" class="border rounded px-2 py-2">
+            <input id="sch_s" type="date" value="${today()}" class="border rounded px-2 py-2">
+            <input id="sch_e" type="date" value="${today()}" class="border rounded px-2 py-2">
+            <button id="sch_add" class="bg-indigo-600 text-white rounded px-3">일정 추가</button>
+          </div>
+          <div id="sch_list"></div>
+        </div>
+      `;
+      document.getElementById('sch_add').onclick = async ()=>{
+        const p = document.getElementById('sch_proj').value;
+        const n = document.getElementById('sch_name').value;
+        const s = document.getElementById('sch_s').value;
+        const e = document.getElementById('sch_e').value;
+        if(!p || !n || !s || !e) return alert('모두 입력하세요.');
+        if(s>e) return alert('시작일이 종료일보다 늦을 수 없어요.');
+        await api('create', { sheet:'schedules', record:{ projectId:p, taskName:n, startDate:s, endDate:e, isCompleted:false }});
+        showMsg('일정 추가 완료');
+        paintList();
+      };
+      paintList();
+
+      async function paintList(){
+        const all = await api('read', {sheet:'schedules'});
+        if(!Array.isArray(all) || !all.length){ document.getElementById('sch_list').innerHTML = '<p class="text-gray-500">등록된 일정이 없습니다.</p>'; return; }
+        const min = new Date(Math.min(...all.map(a=>new Date(a.startDate))));
+        const max = new Date(Math.max(...all.map(a=>new Date(a.endDate))));
+        const days = Math.ceil((max-min)/(1000*60*60*24))+1;
+
+        let html = `
+          <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="table-th"><tr>
+              <th class="px-3 py-2 text-left">업무명</th>
+              <th class="px-3 py-2 text-left">기간</th>
+              <th class="px-3 py-2 text-left">진척</th>
+              <th class="px-3 py-2 text-right">완료</th>
+            </tr></thead><tbody>
+        `;
+        all.forEach(t=>{
+          const s = new Date(t.startDate), e = new Date(t.endDate);
+          const startOffset = Math.ceil((s - min)/(1000*60*60*24));
+          const duration = Math.ceil((e - s)/(1000*60*60*24))+1;
+          const left = (startOffset/days)*100;
+          const width = (duration/days)*100;
+          html += `
+            <tr>
+              <td class="px-3 py-2 border-t">${t.taskName}</td>
+              <td class="px-3 py-2 border-t">${t.startDate} ~ ${t.endDate}</td>
+              <td class="px-3 py-2 border-t">
+                <div class="h-2 bg-gray-200 rounded-full relative overflow-hidden">
+                  <div style="margin-left:${left}%; width:${width}%;" class="h-2 ${t.isCompleted?'bg-green-500':'bg-indigo-500'} rounded-full"></div>
+                </div>
+              </td>
+              <td class="px-3 py-2 border-t text-right">
+                <button data-id="${t.id}" class="doneBtn text-xs px-2 py-1 rounded border ${t.isCompleted?'bg-green-100':'bg-gray-100'}">${t.isCompleted?'해제':'완료'}</button>
+              </td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table></div>
+        <div class="text-xs text-gray-500 mt-1">차트 기간: ${min.toISOString().slice(0,10)} ~ ${max.toISOString().slice(0,10)} (총 ${days}일)</div>`;
+        const box = document.getElementById('sch_list');
+        box.innerHTML = html;
+        box.querySelectorAll('.doneBtn').forEach(b=>{
+          b.onclick = async ()=>{
+            const id = b.dataset.id;
+            const task = all.find(x=>x.id===id);
+            await api('update', { sheet:'schedules', id, record:{ isCompleted: !task.isCompleted }});
+            paintList();
           };
-          ul.appendChild(li);
         });
       }
     }
 
-    function renderApp() {
-      renderProjectSidebar();
+    /***********************
+     * 8) 탭: 보고서
+     ***********************/
+    async function renderReports(){
+      const projects = await api('read', {sheet:'projects'});
+      const projOpt = (projects||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+      view.innerHTML = `
+        <div class="space-y-4">
+          <h2 class="text-lg font-bold">📊 보고서 / 집계</h2>
+          <div class="grid md:grid-cols-4 gap-2">
+            <select id="rp_proj" class="border rounded px-2 py-2"><option value="">프로젝트</option>${projOpt}</select>
+            <input id="rp_from" type="date" value="${today()}" class="border rounded px-2 py-2">
+            <input id="rp_to" type="date" value="${today()}" class="border rounded px-2 py-2">
+            <button id="rp_go" class="bg-indigo-600 text-white rounded px-3">보기</button>
+          </div>
+          <div id="rp_out"></div>
+        </div>
+      `;
+      document.getElementById('rp_go').onclick = async ()=>{
+        const pid = document.getElementById('rp_proj').value;
+        const f   = document.getElementById('rp_from').value;
+        const t   = document.getElementById('rp_to').value;
+        if(!pid) return alert('프로젝트를 선택하세요.');
+        const logs = await api('read', { sheet:'dailyLogs' });
+        const inRange = (logs||[]).filter(l=> l.projectId===pid && l.logDate>=f && l.logDate<=t);
+        let totalCost=0, totalIncome=0, totalPaid=0, totalUnpaid=0;
 
-      const area = document.getElementById('contentArea');
-      if (state.activeTab === 'master') {
-        area.innerHTML = `<p class="text-gray-500">마스터 데이터 관리 탭 준비 중…</p>`;
-      } else if (state.activeTab === 'dailyLog') {
-        area.innerHTML = `<p class="text-gray-500">일일 기록 탭 준비 중…</p>`;
-      } else if (state.activeTab === 'schedule') {
-        area.innerHTML = `<p class="text-gray-500">일정 / 간트 탭 준비 중…</p>`;
-      } else if (state.activeTab === 'reports') {
-        area.innerHTML = `<p class="text-gray-500">보고서 / 현황 탭 준비 중…</p>`;
-      } else {
-        area.innerHTML = `<p class="text-gray-500">탭을 선택해 주세요.</p>`;
-      }
+        inRange.forEach(l=>{
+          let cost=0, income=0;
+          if(l.type==='income'){ income += Number(l.amount||0); }
+          else if(l.type==='expense'){ cost += Number(l.amount||0); }
+          else if(l.type==='materials'){ /* 단가×수량은 마스터 없이 간단표: 보고서에선 누적 수량만 비용으로는 미반영(확장 여지) */ }
+          else if(l.type==='manpower'){ /* 단가×명수 계산은 마스터 단가 필요 → 간단판에서는 미반영 */ }
+
+          totalCost   += cost;
+          totalIncome += income;
+          if(l.paymentStatus==='지급완료') totalPaid += (cost||0);
+          else if(l.type!=='income') totalUnpaid += (cost||0);
+        });
+        const net = totalIncome - totalCost;
+
+        document.getElementById('rp_out').innerHTML = `
+          <div class="grid md:grid-cols-3 gap-4">
+            <div class="p-4 rounded-xl border bg-red-50 text-red-700">
+              <p class="text-sm">총 비용</p>
+              <p class="text-2xl font-extrabold">${money(totalCost)} 원</p>
+            </div>
+            <div class="p-4 rounded-xl border bg-blue-50 text-blue-700">
+              <p class="text-sm">총 수입</p>
+              <p class="text-2xl font-extrabold">${money(totalIncome)} 원</p>
+            </div>
+            <div class="p-4 rounded-xl border ${net>=0?'bg-green-50 text-green-700':'bg-rose-50 text-rose-700'}">
+              <p class="text-sm">순이익</p>
+              <p class="text-2xl font-extrabold">${money(net)} 원</p>
+            </div>
+            <div class="p-4 rounded-xl border bg-amber-50 text-amber-700">
+              <p class="text-sm">미지급</p>
+              <p class="text-2xl font-extrabold">${money(totalUnpaid)} 원</p>
+            </div>
+            <div class="p-4 rounded-xl border bg-emerald-50 text-emerald-700">
+              <p class="text-sm">지급완료</p>
+              <p class="text-2xl font-extrabold">${money(totalPaid)} 원</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500 mt-2">※ 인원/자재 단가 기반 자동계산은 “고급 모드”에서 확장 가능해요.</p>
+        `;
+      };
+    }
+
+    /***********************
+     * 9) 탭: 사용법 & 회사
+     ***********************/
+    function renderHelp(){
+      view.innerHTML = `
+        <div class="space-y-2">
+          <h2 class="text-lg font-bold">❓ 사용법</h2>
+          <ol class="list-decimal pl-5 space-y-1 text-sm">
+            <li>위에 “Apps Script 웹앱 URL”에 주소를 저장하세요.</li>
+            <li>“⚙️ 마스터 데이터 관리” 탭에서 먼저 <b>프로젝트</b>를 추가하세요.</li>
+            <li>필요하면 인원, 자재, 비용항목도 등록하세요.</li>
+            <li>“🗓️ 일일 기록 / 입력”에서 프로젝트와 날짜를 고르고 투입/비용/일지를 저장하세요.</li>
+            <li>“🗓️ 일정 / 간트”에서 업무 일정을 추가하세요.</li>
+            <li>“📊 보고서 / 현황”에서 기간을 정해 합계를 확인하세요.</li>
+          </ol>
+        </div>
+      `;
+    }
+    function renderAbout(){
+      view.innerHTML = `
+        <div class="space-y-2">
+          <h2 class="text-lg font-bold">🏢 회사 정보</h2>
+          <p class="text-sm text-gray-600">주영건설산업 주식회사 — 토목 전문</p>
+          <img src="logo.svg" alt="logo" class="h-12 mt-2">
+          <p class="text-xs text-gray-500">이 페이지는 Google Sheets를 데이터베이스처럼 사용하는 경량 관리도구입니다.</p>
+        </div>
+      `;
     }
   </script>
-
 </body>
 </html>
