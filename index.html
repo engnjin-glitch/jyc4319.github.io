@@ -1,105 +1,123 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>주영건설산업 주식회사 | Project Data Flow Hub</title>
-  <meta name="description" content="주영건설산업 주식회사 — 토목 전문 시공사의 프로젝트/비용/일정 통합 관리 허브" />
-  <link rel="icon" href="logo.svg" />
+  <title>주영건설산업 주식회사 | JOOYEONG Construction Co., Ltd.</title>
+  <meta name="description" content="토목 전문 주영건설산업(주) — 현장 데이터 관리, 공사비 집계, 일정/보고 통합 솔루션" />
+  <link rel="icon" href="logo.png" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root{
-      --brand:#1e3a8a; /* indigo-800 */
-      --accent:#ef4444; /* red-500 */
-    }
-    .brand-gradient{ background-image: linear-gradient(135deg, rgba(30,58,138,.08), rgba(239,68,68,.08)); }
-  </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-800">
+<body class="bg-gray-50">
   <!-- Header -->
-  <header class="bg-white/90 backdrop-blur border-b">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+  <header class="bg-white/90 backdrop-blur border-b border-gray-100 sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center space-x-3">
-        <img src="logo.svg" alt="주영건설 로고" class="w-8 h-8" />
-        <h1 class="text-xl md:text-2xl font-extrabold" style="color:var(--brand)">주영건설산업 주식회사</h1>
+        <img src="logo.png" alt="JOOYEONG Logo" class="w-8 h-8" />
+        <div>
+          <h1 class="text-xl font-extrabold text-[#8b3057]">주영건설산업 주식회사</h1>
+          <p class="text-xs tracking-wide text-gray-500">JOOYEONG Construction Co., Ltd.</p>
+        </div>
       </div>
-      <nav class="space-x-4 text-sm">
-        <a href="#about" class="hover:text-indigo-700">회사소개</a>
-        <a href="#biz" class="hover:text-indigo-700">사업분야</a>
-        <a href="#works" class="hover:text-indigo-700">시공실적</a>
-        <a href="#contact" class="hover:text-indigo-700">고객센터</a>
-        <a href="app.html" class="inline-block bg-indigo-600 text-white px-3 py-1 rounded-lg shadow hover:bg-indigo-700">시스템 접속</a>
+      <nav class="hidden md:flex items-center space-x-6 text-sm">
+        <a href="#about" class="text-gray-700 hover:text-[#8b3057]">회사소개</a>
+        <a href="#solution" class="text-gray-700 hover:text-[#8b3057]">솔루션</a>
+        <a href="#contact" class="text-gray-700 hover:text-[#8b3057]">문의</a>
+        <a href="app.html" class="bg-[#8b3057] text-white px-4 py-2 rounded-lg shadow hover:brightness-110">관리 시스템 열기</a>
       </nav>
     </div>
   </header>
 
   <!-- Hero -->
-  <section class="brand-gradient">
-    <div class="max-w-6xl mx-auto px-4 py-16 text-center">
-      <h2 class="text-4xl md:text-5xl font-black" style="color:var(--brand)">토목 프로젝트 데이터 허브</h2>
-      <p class="mt-4 text-gray-600">현장 투입 · 비용 · 일정 · 보고서를 한 곳에서.</p>
-      <a href="app.html" class="inline-block mt-8 bg-indigo-600 text-white px-8 py-3 rounded-xl shadow hover:bg-indigo-700">
-        프로젝트 관리 시스템 접속
-      </a>
+  <section class="relative overflow-hidden">
+    <div class="max-w-6xl mx-auto px-4 py-16 grid md:grid-cols-2 gap-8 items-center">
+      <div>
+        <h2 class="text-3xl md:text-5xl font-black text-gray-900 leading-tight">
+          토목 현장 데이터를 하나로.
+        </h2>
+        <p class="mt-4 text-gray-600">
+          Project Data Flow Hub로 인원·장비·자재·외주·비용·일정을
+          Google Sheets 기반으로 안전하게 관리합니다.
+        </p>
+        <div class="mt-6 flex items-center space-x-3">
+          <a href="app.html" class="bg-[#8b3057] text-white px-6 py-3 rounded-xl shadow hover:brightness-110">시스템 시작</a>
+          <a href="#solution" class="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-white">기능 보기</a>
+        </div>
+      </div>
+      <div class="flex justify-center md:justify-end">
+        <img src="wordmark.png" alt="주영건설산업(주) 워드마크" class="max-w-sm w-full drop-shadow" />
+      </div>
     </div>
   </section>
 
   <!-- About -->
-  <section id="about" class="max-w-6xl mx-auto px-4 py-12">
-    <h3 class="text-xl font-bold text-gray-900">회사소개</h3>
-    <p class="mt-2 text-gray-600 leading-relaxed">
-      주영건설산업 주식회사는 토목 분야 전문 시공사로서 도로, 교량, 배수, 옹벽, 택지조성 등 다양한 프로젝트를 수행해왔습니다.
-      안전과 품질을 최우선으로, 데이터 기반의 공정·비용 관리를 지향합니다.
-    </p>
+  <section id="about" class="bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-14 grid md:grid-cols-3 gap-8">
+      <div class="md:col-span-2">
+        <h3 class="text-2xl font-bold text-gray-900">회사소개</h3>
+        <p class="mt-3 text-gray-600 leading-relaxed">
+          주영건설산업(주)은 토목 분야의 기술력과 시공 경험을 바탕으로, 데이터 기반 현장관리 문화를 선도합니다.
+          현장의 모든 기록을 표준화하고, 투명하고 빠르게 공유하여 의사결정 품질을 높입니다.
+        </p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">핵심역량</p>
+        <ul class="mt-2 space-y-2 text-gray-700 text-sm list-disc pl-5">
+          <li>토목 시공 및 품질·원가 관리</li>
+          <li>현장 데이터 표준화 및 시각화</li>
+          <li>Google Sheets 기반 협업 시스템</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
-  <!-- Biz -->
-  <section id="biz" class="max-w-6xl mx-auto px-4 py-12">
-    <h3 class="text-xl font-bold text-gray-900">사업분야</h3>
-    <ul class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4 text-gray-700">
-      <li class="bg-white rounded-xl p-4 shadow">도로/포장</li>
-      <li class="bg-white rounded-xl p-4 shadow">교량/구조물</li>
-      <li class="bg-white rounded-xl p-4 shadow">상하수도/배수</li>
-      <li class="bg-white rounded-xl p-4 shadow">옹벽/토공</li>
-      <li class="bg-white rounded-xl p-4 shadow">부대토목/조경</li>
-      <li class="bg-white rounded-xl p-4 shadow">단지조성/택지</li>
-    </ul>
-  </section>
-
-  <!-- Works -->
-  <section id="works" class="max-w-6xl mx-auto px-4 py-12">
-    <h3 class="text-xl font-bold text-gray-900">시공실적(예시)</h3>
-    <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white rounded-xl p-4 shadow border">
-        <p class="font-semibold">○○고속도로 확장</p>
-        <p class="text-sm text-gray-500">교량확장/포장</p>
+  <!-- Solution -->
+  <section id="solution" class="">
+    <div class="max-w-6xl mx-auto px-4 py-14">
+      <h3 class="text-2xl font-bold text-gray-900">솔루션: Project Data Flow Hub</h3>
+      <div class="mt-6 grid md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
+          <h4 class="font-semibold">마스터 관리</h4>
+          <p class="text-sm text-gray-600 mt-2">프로젝트/인원/자재/외주/비용 항목 표준화</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
+          <h4 class="font-semibold">일일 입력/보고</h4>
+          <p class="text-sm text-gray-600 mt-2">모바일 친화 UI, 미지급/지급 상태 추적</p>
+        </div>
+        <div class="bg-white rounded-xl p-5 shadow border border-gray-100">
+          <h4 class="font-semibold">일정/간트</h4>
+          <p class="text-sm text-gray-600 mt-2">간단 간트 뷰로 공정 흐름 확인</p>
+        </div>
       </div>
-      <div class="bg-white rounded-xl p-4 shadow border">
-        <p class="font-semibold">△△산단 진입로 개설</p>
-        <p class="text-sm text-gray-500">도로/배수</p>
-      </div>
-      <div class="bg-white rounded-xl p-4 shadow border">
-        <p class="font-semibold">◇◇ 신도시 부지조성</p>
-        <p class="text-sm text-gray-500">토공/옹벽</p>
+      <div class="mt-8">
+        <a href="app.html" class="inline-block bg-[#8b3057] text-white px-6 py-3 rounded-xl shadow hover:brightness-110">바로 사용하기</a>
       </div>
     </div>
   </section>
 
   <!-- Contact -->
-  <section id="contact" class="max-w-6xl mx-auto px-4 py-12">
-    <h3 class="text-xl font-bold text-gray-900">고객센터</h3>
-    <div class="mt-2 text-gray-600 leading-relaxed">
-      <p>대표메일: contact@juyeong-const.co.kr (예시)</p>
-      <p>주소: 인천광역시 ○○구 ○○로 00 (예시)</p>
-      <p>전화: 032-000-0000 (예시)</p>
+  <section id="contact" class="bg-white border-t border-gray-100">
+    <div class="max-w-6xl mx-auto px-4 py-12 grid md:grid-cols-2 gap-8">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900">문의</h3>
+        <p class="text-gray-600 mt-2 text-sm">
+          견적/제휴/채용 관련 문의는 아래 메일로 보내주세요.
+        </p>
+        <p class="mt-4 font-medium text-gray-800">contact@juyeong.co.kr</p>
+      </div>
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+        <p class="text-sm text-gray-500">바로가기</p>
+        <ul class="mt-2 text-sm text-gray-700 space-y-2">
+          <li><a href="app.html" class="text-[#8b3057] hover:underline">현장관리 시스템</a></li>
+          <li><a href="#" class="hover:underline">회사소개서(PDF)</a></li>
+        </ul>
+      </div>
     </div>
   </section>
 
-  <footer class="border-t bg-white">
-    <div class="max-w-6xl mx-auto px-4 py-6 text-xs text-gray-500 flex items-center justify-between">
-      <span>© 2025 주영건설산업 주식회사. All rights reserved.</span>
-      <span>Built with Google Sheets · Apps Script</span>
-    </div>
+  <footer class="text-center text-xs text-gray-500 py-8">
+    © 주영건설산업 주식회사 · JOOYEONG Construction Co., Ltd.
   </footer>
 </body>
 </html>
