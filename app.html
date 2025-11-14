@@ -1,273 +1,577 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>주영건설산업 프로젝트 관리 시스템</title>
+  <title>Project Data Flow Hub – 주영건설산업</title>
+  <link rel="icon" href="logo.svg" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-    .main-nav-button {
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-                  0 2px 4px -2px rgba(0, 0, 0, 0.06);
-    }
-    .main-nav-button.active {
-      background-color: #4f46e5;
-      color: white;
-      transform: translateY(-2px);
-      box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3),
-                  0 4px 6px -4px rgba(79, 70, 229, 0.3);
-    }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background-color: #f7f9fb; }
+    .tab-btn.active { background-color: #4f46e5 !important; color: #fff !important; }
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; justify-content: center; align-items: center; z-index: 50; }
+    .modal-box { background: white; padding: 20px; border-radius: 14px; width: 420px; max-width: 95%; }
   </style>
 </head>
-
-<body>
-  <!-- 헤더 -->
-  <header class="bg-white shadow-xl sticky top-0 z-10">
-    <div class="max-w-full mx-auto px-4 py-3 flex justify-between items-center border-b border-gray-100">
+<body class="bg-gray-50">
+  <header class="bg-white shadow">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
       <div class="flex items-center space-x-3">
-        <img src="주영로고(글씨).png" alt="주영건설산업" class="w-10 h-auto">
-        <h1 class="text-3xl font-black text-indigo-700">주영건설산업 <span class="text-pink-500">프로젝트 관리</span></h1>
+        <img src="logo.svg" alt="logo" class="w-7 h-7" />
+        <h1 class="text-xl md:text-2xl font-extrabold text-indigo-700">Project Data Flow Hub</h1>
       </div>
-      <div class="text-sm text-gray-500">
-        <span class="font-semibold">User ID:</span>
-        <span id="userIdDisplay" class="truncate font-mono text-xs">연결 중...</span>
-      </div>
-    </div>
-
-    <!-- 네비게이션 -->
-    <div class="flex justify-center p-3 bg-indigo-50 border-t border-indigo-100 shadow-inner">
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold active" data-tab="dailyLog">🗓️ 일일 기록 / 입력</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="master">⚙️ 마스터 데이터 관리</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="reports">📊 보고서 / 현황</button>
-      <button class="main-nav-button px-6 py-3 mx-1 rounded-xl text-lg font-bold" data-tab="schedule">🗓️ 일정 / 간트</button>
+      <a href="index.html" class="text-sm text-indigo-600 hover:underline">← 회사 메인으로</a>
     </div>
   </header>
 
-  <!-- 메시지 -->
-  <div id="messageBox" class="fixed top-20 right-5 z-50"></div>
-
-  <!-- 로딩 화면 -->
-  <div id="loadingIndicator" class="flex justify-center items-center h-[80vh]">
-    <div class="flex flex-col items-center p-8 bg-white rounded-xl shadow-2xl">
-      <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-500"></div>
-      <p class="mt-4 text-xl text-indigo-600 font-bold">데이터 불러오는 중...</p>
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="bg-white p-4 rounded-xl shadow mb-4">
+      <label class="block text-sm font-semibold text-gray-700">Apps Script 웹앱 URL</label>
+      <input
+        id="apiBase"
+        type="text"
+        placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+        class="w-full mt-1 p-2 border rounded"
+      />
+      <p class="text-xs text-gray-500 mt-1">
+        * Google Apps Script에서 웹앱으로 배포한 뒤, 나온 URL을 여기 붙여넣고 <b>주소 저장</b>을 눌러 주세요.
+      </p>
+      <div class="mt-2 flex items-center space-x-2">
+        <button id="saveApi" class="bg-indigo-600 text-white px-3 py-1 rounded">주소 저장</button>
+        <span id="apiSaved" class="text-xs text-green-600"></span>
+      </div>
     </div>
-  </div>
 
-  <!-- 메인 콘텐츠 -->
-  <main id="mainContent" class="hidden max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <div class="flex">
-      <!-- 왼쪽 사이드바 -->
-      <aside id="sidebar" class="w-full md:w-64 bg-white rounded-xl shadow-md mr-4">
-        <h2 class="text-lg font-bold text-gray-700 p-4 border-b border-gray-200 bg-gray-50">🛠️ 프로젝트 선택</h2>
-        <ul id="projectList" class="divide-y divide-gray-100 overflow-y-scroll max-h-[60vh]"></ul>
-      </aside>
-
-      <!-- 오른쪽 본문 -->
-      <section id="contentArea" class="flex-1 bg-white p-6 rounded-xl shadow-xl">
-        <div class="p-8 text-center text-gray-500">탭을 선택해 주세요.</div>
-      </section>
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 mb-4">
+      <button class="tab-btn bg-indigo-600 text-white px-3 py-2 rounded" data-tab="projects">프로젝트</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="personnel">인원</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="materials">자재</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="outsourcing">외주</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="costs">비용</button>
+      <button class="tab-btn bg-white border px-3 py-2 rounded" data-tab="schedules">일정</button>
     </div>
+
+    <section id="view" class="bg-white rounded-xl shadow p-4"></section>
   </main>
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    // 1) 로딩 숨기고 본문 보이기
-    const loading = document.getElementById('loadingIndicator');
-    const main = document.getElementById('mainContent');
-    if (loading) loading.classList.add('hidden');
-    if (main) main.classList.remove('hidden');
+  <template id="tableTemplate">
+    <div>
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-bold" id="sheetTitle"></h2>
+        <div class="space-x-2 flex items-center">
+          <button id="exportExcelBtn" class="text-xs bg-emerald-500 text-white px-3 py-1 rounded border">
+            엑셀 다운로드
+          </button>
+          <button id="exportPdfBtn" class="text-xs bg-slate-500 text-white px-3 py-1 rounded border">
+            PDF 다운로드
+          </button>
+          <button id="reloadBtn" class="text-sm bg-gray-100 px-3 py-1 rounded border">새로고침</button>
+          <button id="addBtn" class="text-sm bg-indigo-600 text-white px-3 py-1 rounded">새로 추가</button>
+        </div>
+      </div>
 
-    // 2) 탭 버튼 active 토글 (현재는 스타일만 반응)
-    const buttons = document.querySelectorAll('.main-nav-button');
-    buttons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        buttons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
+      <div id="costChartWrapper" class="mb-4 hidden">
+        <canvas id="costChart" height="80"></canvas>
+      </div>
 
-        // 아직 데이터 연동 전이므로 안내만 표시
-        const tab = btn.getAttribute('data-tab');
-        const content = document.getElementById('contentArea');
-        if (content) {
-          const label =
-            tab === 'dailyLog' ? '일일 기록 / 입력' :
-            tab === 'master'   ? '마스터 데이터 관리' :
-            tab === 'reports'  ? '보고서 / 현황' :
-            tab === 'schedule' ? '일정 / 간트' : '탭';
-          content.innerHTML = `<div class="p-8 text-center text-gray-500">${label} 탭이 선택되었습니다. (데이터 연동 단계에서 내용이 채워집니다)</div>`;
-        }
-      });
-    });
-  });
-</script>
-
-<script>
-/** ===== Sheets 어댑터: 기존 함수 이름 유지(레이아웃/디자인 변경 없음) ===== **/
-
-// 1) 웹앱 URL 저장/불러오기
-//  - 이미 api 입력칸이 있는 app.html을 쓰신다면, 그 입력칸에 붙여넣고 LocalStorage에 저장하면 됩니다.
-//  - 여기는 안전빵으로 LocalStorage에서 읽어옵니다.
-function getApiBase_() {
-  // app.html에서 저장했던 키를 재사용하거나, 첫 설정 시 아래에 직접 넣어도 됩니다.
-  return localStorage.getItem('https://script.google.com/macros/s/AKfycbzaKNWodt-9RbMwaLJKu4RyBEm0lwcmJcjtWyGPXLdO-ZYPQxafrIttzw6bPWsbBFZX/exec') || ''; // 비어있으면 나중에 알럿 띄움
-}
-
-async function api_(action, payload) {
-  const url = getApiBase_();
-  if (!url) { alert('Apps Script 웹앱 URL을 먼저 저장하세요.'); throw new Error('No API URL'); }
-  const res = await fetch(url, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action, ...payload })
-  });
-  const text = await res.text();
-  try { return JSON.parse(text); } catch(e) { return { error: 'Invalid JSON', raw: text }; }
-}
-
-// 2) 시트 키 매핑 (기존 COLLECTIONS 이름 그대로 사용)
-const SHEET_KEYS = {
-  projects: 'projects',
-  daily_logs: 'daily_logs',
-  schedules: 'schedules',
-  master_personnel: 'master_personnel',
-  master_equipment: 'master_equipment',
-  master_materials: 'master_materials',
-  master_outsourcing: 'master_outsourcing',
-  master_costItems: 'master_costItems',
-};
-
-// 3) 기존 코드에서 부르던 리스너 함수를 "시트 읽기"로 대체
-async function setupDataListeners() {
-  // projects
-  const projects = await api_('read', { sheet: SHEET_KEYS.projects });
-  globalState.projects = Array.isArray(projects) ? projects : [];
-  if (!globalState.selectedProjectId && globalState.projects.length) {
-    globalState.selectedProjectId = globalState.projects[0].id || null;
-  }
-
-  // master data
-  const types = ['personnel','equipment','materials','outsourcing','costItems'];
-  for (const t of types) {
-    const sheetKey = SHEET_KEYS['master_'+t];
-    const rows = await api_('read', { sheet: sheetKey });
-    globalState.masterData[t] = Array.isArray(rows) ? rows : [];
-  }
-
-  // daily logs (전체 읽어서 클라이언트에서 필터)
-  const logs = await api_('read', { sheet: SHEET_KEYS.daily_logs });
-  globalState.dailyLogs = Array.isArray(logs) ? logs : [];
-
-  // schedules
-  const sch = await api_('read', { sheet: SHEET_KEYS.schedules });
-  globalState.schedules = Array.isArray(sch) ? sch : [];
-
-  // 렌더
-  renderApp();
-
-  // 가벼운 폴링(선택): 15초마다 새로고침 느낌
-  if (!window.__sheets_polling__) {
-    window.__sheets_polling__ = setInterval(setupDataListeners, 15000);
-  }
-}
-
-// 4) 저장/수정 (기존 saveDocument 대체)
-//   - id 없으면 create, 있으면 update
-async function saveDocument(collectionName, data, id) {
-  try {
-    const sheet = SHEET_KEYS[collectionName];
-    if (!sheet) throw new Error('Unknown collection: ' + collectionName);
-
-    if (id) {
-      await api_('update', { sheet, id, record: data });
-      showMessage('업데이트 완료');
-    } else {
-      await api_('create', { sheet, record: data });
-      showMessage('추가 완료');
-    }
-    // 저장 후 최신 데이터 반영
-    await setupDataListeners();
-  } catch (e) {
-    console.error(e);
-    showMessage('저장 중 오류: ' + e.message, true);
-  }
-}
-
-// 5) 삭제 (기존 deleteDocument 대체)
-async function deleteDocument(collectionName, id) {
-  if (!confirm('정말 삭제할까요?')) return;
-  try {
-    const sheet = SHEET_KEYS[collectionName];
-    if (!sheet) throw new Error('Unknown collection: ' + collectionName);
-    await api_('delete', { sheet, id });
-    showMessage('삭제 완료');
-    await setupDataListeners();
-  } catch (e) {
-    console.error(e);
-    showMessage('삭제 중 오류: ' + e.message, true);
-  }
-}
-
-// 6) Firebase 초기화 자리에, 그냥 UI 보이기 + 데이터 로드
-async function initializeFirebase() {
-  // 로딩 숨기고 본문 보이기 (기존 구조 유지)
-  const loading = document.getElementById('loadingIndicator');
-  const main = document.getElementById('mainContent');
-  if (loading) loading.classList.add('hidden');
-  if (main) main.classList.remove('hidden');
-
-  // 사용자 ID는 Sheets라서 없으니 간단 안내
-  const uid = document.getElementById('userIdDisplay');
-  if (uid) uid.textContent = 'Sheets-Mode';
-
-  // 데이터 불러오기
-  await setupDataListeners();
-}
-</script>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm" id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </template>
 
   <script>
-/* ===============================
-   🧠 Google Sheets Adapter
-   =============================== */
+    const SHEETS = {
+      projects: {
+        label: "프로젝트",
+        sheetKey: "projects",
+        headers: [
+          "id","name","budget","startDate","endDate","owner","description",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      personnel: {
+        label: "인원",
+        sheetKey: "personnel",
+        headers: [
+          "id","name","role","unitCost","contact","memo",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      materials: {
+        label: "자재",
+        sheetKey: "materials",
+        headers: [
+          "id","name","spec","unit","unitPrice","supplier","memo",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      outsourcing: {
+        label: "외주",
+        sheetKey: "outsourcing",
+        headers: [
+          "id","company","serviceType","contractValue","period","manager","phone",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      costs: {
+        label: "비용",
+        sheetKey: "dailyLogs",
+        headers: [
+          "id","projectName","logDate","category","item","amount",
+          "type","paidStatus","memo",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      schedules: {
+        label: "일정",
+        sheetKey: "schedules",
+        headers: [
+          "id","projectName","taskName","startDate","endDate","isCompleted","memo",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      extra1: {
+        label: "여유시트1",
+        sheetKey: "extra1",
+        headers: [
+          "id","col1","col2","col3","col4","col5",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      extra2: {
+        label: "여유시트2",
+        sheetKey: "extra2",
+        headers: [
+          "id","col1","col2","col3","col4","col5",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      extra3: {
+        label: "여유시트3",
+        sheetKey: "extra3",
+        headers: [
+          "id","col1","col2","col3","col4","col5",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+      extra4: {
+        label: "여유시트4",
+        sheetKey: "extra4",
+        headers: [
+          "id","col1","col2","col3","col4","col5",
+          "extra1","extra2","extra3","extra4","extra5"
+        ],
+      },
+    };
 
-const SHEETS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzaKNWodt-9RbMwaLJKu4RyBEm0lwcmJcjtWyGPXLdO-ZYPQxafrIttzw6bPWsbBFZX/exec"; 
-// 예: https://script.google.com/macros/s/AKfycbyA.../exec
+    const view = document.getElementById("view");
+    const apiInput = document.getElementById("apiBase");
+    const saveApiBtn = document.getElementById("saveApi");
+    const apiSaved = document.getElementById("apiSaved");
+    const tabButtons = document.querySelectorAll(".tab-btn");
 
-async function sheetAPI(action, sheetName, data = {}) {
-  try {
-    const response = await fetch(SHEETS_WEBAPP_URL, {
-      method: "POST",
-      mode: "cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, sheetName, data })
+    let currentTabKey = "projects";
+
+    apiInput.value = localStorage.getItem("SHEETS_API_URL") || "";
+
+    saveApiBtn.onclick = () => {
+      const url = apiInput.value.trim();
+      if (!url) {
+        alert("웹앱 URL을 입력해 주세요.");
+        return;
+      }
+      localStorage.setItem("SHEETS_API_URL", url);
+      apiSaved.textContent = "저장됨";
+      setTimeout(() => (apiSaved.textContent = ""), 1500);
+    };
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+        switchTab(tab);
+      });
     });
-    return await response.json();
-  } catch (error) {
-    console.error("시트 통신 오류:", error);
-    alert("데이터 통신 중 오류가 발생했습니다. (인터넷 연결 또는 스크립트 URL 확인)");
-  }
-}
 
-// 🟢 예시 사용법 (기본 CRUD)
-async function loadProjects() {
-  const result = await sheetAPI("read", "projects");
-  console.log("📂 프로젝트 목록:", result);
-}
+    function switchTab(tabKey) {
+      currentTabKey = tabKey;
+      tabButtons.forEach((b) => {
+        const isActive = b.dataset.tab === tabKey;
+        b.classList.toggle("active", isActive);
+        if (isActive) {
+          b.classList.remove("bg-white", "border", "text-gray-800");
+          b.classList.add("bg-indigo-600", "text-white");
+        } else {
+          b.classList.add("bg-white", "border", "text-gray-800");
+        }
+      });
+      renderTable(tabKey);
+    }
 
-async function addProject(name, budget, startDate, endDate) {
-  const newProject = { name, budget, startDate, endDate };
-  const result = await sheetAPI("create", "projects", newProject);
-  console.log("✅ 새 프로젝트 저장:", result);
-}
+    function el(html) {
+      const t = document.createElement("template");
+      t.innerHTML = html.trim();
+      return t.content.firstChild;
+    }
 
-async function deleteProject(id) {
-  const result = await sheetAPI("delete", "projects", { id });
-  console.log("🗑️ 삭제 완료:", result);
-}
-</script>
+    async function renderTable(tabKey) {
+      const cfg = SHEETS[tabKey];
+      const sheetKey = cfg.sheetKey;
 
-  
+      const tpl = document.getElementById("tableTemplate").content.cloneNode(true);
+      const titleEl = tpl.getElementById("sheetTitle");
+      const reloadBtn = tpl.getElementById("reloadBtn");
+      const addBtn = tpl.getElementById("addBtn");
+      const exportExcelBtn = tpl.getElementById("exportExcelBtn");
+      const exportPdfBtn = tpl.getElementById("exportPdfBtn");
+      const costChartWrapper = tpl.getElementById("costChartWrapper");
+
+      titleEl.textContent = cfg.label;
+
+      reloadBtn.onclick = () => renderTable(tabKey);
+      addBtn.onclick = () => openEditor(tabKey, null);
+      exportExcelBtn.onclick = () => exportSheetToExcel(tabKey);
+      exportPdfBtn.onclick = () => exportSheetToPdf(tabKey);
+
+      if (tabKey === "costs") {
+        costChartWrapper.classList.remove("hidden");
+      }
+
+      const table = tpl.getElementById("dataTable");
+      const thead = table.querySelector("thead");
+      const tbody = table.querySelector("tbody");
+
+      thead.innerHTML =
+        "<tr>" +
+        cfg.headers
+          .map(
+            (h) =>
+              `<th class="text-left px-3 py-2 bg-gray-50 border-b text-xs font-semibold text-gray-600">${h}</th>`
+          )
+          .join("") +
+        `<th class="px-3 py-2 bg-gray-50 border-b text-right text-xs font-semibold text-gray-600">액션</th></tr>`;
+
+      const rows = await api("read", { sheet: sheetKey });
+      const list = Array.isArray(rows) ? rows : [];
+
+      tbody.innerHTML = "";
+
+      list.forEach((obj) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-gray-50";
+
+        cfg.headers.forEach((h) => {
+          const value = obj[h] ?? "";
+          tr.appendChild(
+            el(
+              `<td class="px-3 py-1 border-t align-middle">${String(
+                value
+              )}</td>`
+            )
+          );
+        });
+
+        const actTd = el(
+          `<td class="px-3 py-1 border-t text-right align-middle space-x-2"></td>`
+        );
+        const editBtn = el(
+          `<button class="text-xs px-2 py-1 bg-gray-100 rounded border">수정</button>`
+        );
+        const delBtn = el(
+          `<button class="text-xs px-2 py-1 bg-red-600 text-white rounded">삭제</button>`
+        );
+
+        editBtn.onclick = () => openEditor(tabKey, obj);
+        delBtn.onclick = async () => {
+          if (confirm("삭제하시겠습니까?")) {
+            await api("delete", { sheet: sheetKey, id: obj.id });
+            renderTable(tabKey);
+          }
+        };
+
+        actTd.append(editBtn, delBtn);
+        tr.appendChild(actTd);
+        tbody.appendChild(tr);
+      });
+
+      if (tabKey === "costs") {
+        drawCostChart(list);
+      }
+
+      view.innerHTML = "";
+      view.appendChild(tpl);
+    }
+
+    function openEditor(tabKey, existing) {
+      const cfg = SHEETS[tabKey];
+      const headers = cfg.headers;
+
+      const bg = el(`<div class="modal-bg"></div>`);
+      const box = el(`<div class="modal-box"></div>`);
+      const title = existing ? "항목 수정" : "새 항목 추가";
+
+      const h3 = el(
+        `<h3 class="text-lg font-bold mb-3">${title} – ${cfg.label}</h3>`
+      );
+
+      const form = document.createElement("form");
+      form.className = "grid grid-cols-1 md:grid-cols-2 gap-3";
+
+      headers.forEach((h) => {
+        if (h === "id") {
+          const idVal = existing ? existing.id || "" : "";
+          const wrap = el(
+            `<div class="md:col-span-2 hidden">
+              <label class="text-xs text-gray-500">id</label>
+              <input class="w-full border rounded px-2 py-1 mt-1" name="id" value="${idVal}">
+             </div>`
+          );
+          form.appendChild(wrap);
+          return;
+        }
+
+        const val = existing ? existing[h] ?? "" : "";
+
+        let inputHtml;
+        if (h.toLowerCase().includes("description") || h === "memo") {
+          inputHtml = `
+            <div class="md:col-span-2">
+              <label class="text-xs text-gray-500">${h}</label>
+              <textarea class="w-full border rounded px-2 py-1 mt-1" name="${h}" rows="3">${val}</textarea>
+            </div>`;
+        } else if (h.toLowerCase().includes("date")) {
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">${h}</label>
+              <input type="date" class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${val}">
+            </div>`;
+        } else if (
+          h.toLowerCase().includes("amount") ||
+          h.toLowerCase().includes("value") ||
+          h.toLowerCase().includes("price") ||
+          h.toLowerCase().includes("budget") ||
+          h.toLowerCase().includes("cost")
+        ) {
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">${h}</label>
+              <input type="number" step="0.01" class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${val}">
+            </div>`;
+        } else if (h === "type") {
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">type (expense/income)</label>
+              <select class="w-full border rounded px-2 py-1 mt-1" name="type">
+                <option value="">선택</option>
+                <option value="expense" ${val === "expense" ? "selected" : ""}>expense (비용)</option>
+                <option value="income" ${val === "income" ? "selected" : ""}>income (수입)</option>
+              </select>
+            </div>`;
+        } else if (h === "paidStatus") {
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">지급상태</label>
+              <select class="w-full border rounded px-2 py-1 mt-1" name="paidStatus">
+                <option value="">선택</option>
+                <option value="미지급" ${val === "미지급" ? "selected" : ""}>미지급</option>
+                <option value="지급완료" ${val === "지급완료" ? "selected" : ""}>지급완료</option>
+              </select>
+            </div>`;
+        } else if (h === "isCompleted") {
+          const checked = String(val) === "true" || val === true ? "checked" : "";
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">완료 여부</label>
+              <div class="mt-1 flex items-center space-x-2">
+                <input type="checkbox" name="isCompleted" ${checked} class="h-4 w-4">
+                <span class="text-xs text-gray-600">완료</span>
+              </div>
+            </div>`;
+        } else {
+          inputHtml = `
+            <div>
+              <label class="text-xs text-gray-500">${h}</label>
+              <input class="w-full border rounded px-2 py-1 mt-1" name="${h}" value="${val}">
+            </div>`;
+        }
+
+        form.appendChild(el(inputHtml));
+      });
+
+      const btnWrap = el(
+        `<div class="md:col-span-2 flex justify-end space-x-2 mt-2"></div>`
+      );
+      const saveBtn = el(
+        `<button class="bg-indigo-600 text-white px-3 py-1 rounded" type="submit">저장</button>`
+      );
+      const cancelBtn = el(
+        `<button class="bg-gray-100 px-3 py-1 rounded border" type="button">취소</button>`
+      );
+
+      cancelBtn.onclick = () => bg.remove();
+      btnWrap.append(saveBtn, cancelBtn);
+      form.appendChild(btnWrap);
+
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const record = {};
+        headers.forEach((h) => {
+          if (h === "id") return;
+          if (h === "isCompleted") {
+            record[h] = fd.get("isCompleted") ? true : false;
+          } else {
+            record[h] = fd.get(h) ?? "";
+          }
+        });
+        const idVal = fd.get("id") || (existing && existing.id) || "";
+
+        const payload = idVal
+          ? { sheet: cfg.sheetKey, id: idVal, record }
+          : { sheet: cfg.sheetKey, record };
+
+        await api(idVal ? "update" : "create", payload);
+        bg.remove();
+        renderTable(tabKey);
+      };
+
+      box.appendChild(h3);
+      box.appendChild(form);
+      bg.appendChild(box);
+      document.body.appendChild(bg);
+    }
+
+    async function api(action, payload) {
+      const url = localStorage.getItem("SHEETS_API_URL") || apiInput.value.trim();
+      if (!url) {
+        alert("먼저 Apps Script 웹앱 URL을 입력/저장하세요.");
+        throw new Error("No API URL");
+      }
+
+      const body = JSON.stringify({ action, ...payload });
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        console.error("API 응답 JSON 파싱 실패:", text);
+        return [];
+      }
+    }
+
+    async function exportSheetToExcel(tabKey) {
+      const cfg = SHEETS[tabKey];
+      const rows = await api("read", { sheet: cfg.sheetKey });
+      const list = Array.isArray(rows) ? rows : [];
+
+      const data = [cfg.headers];
+      list.forEach((obj) => {
+        data.push(cfg.headers.map((h) => obj[h] ?? ""));
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, cfg.label);
+      XLSX.writeFile(wb, `export_${cfg.sheetKey}.xlsx`);
+    }
+
+    async function exportSheetToPdf(tabKey) {
+      const cfg = SHEETS[tabKey];
+      const rows = await api("read", { sheet: cfg.sheetKey });
+      const list = Array.isArray(rows) ? rows : [];
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: "landscape" });
+
+      doc.setFontSize(14);
+      doc.text(`Sheet: ${cfg.label}`, 14, 16);
+      doc.setFontSize(8);
+
+      let y = 24;
+      const lineHeight = 5;
+
+      doc.text(cfg.headers.join(" | "), 10, y);
+      y += lineHeight;
+
+      list.forEach((obj, idx) => {
+        const rowText = cfg.headers.map((h) => String(obj[h] ?? "")).join(" | ");
+        doc.text(rowText, 10, y);
+        y += lineHeight;
+        if (y > 190 && idx < list.length - 1) {
+          doc.addPage();
+          y = 20;
+        }
+      });
+
+      doc.save(`export_${cfg.sheetKey}.pdf`);
+    }
+
+    let costChartInstance = null;
+
+    function drawCostChart(list) {
+      const ctx = document.getElementById("costChart");
+      if (!ctx) return;
+
+      const byDate = {};
+      list.forEach((row) => {
+        const date = row.logDate || row.date || "";
+        if (!date) return;
+        const amount = Number(row.amount || 0);
+        if (!byDate[date]) byDate[date] = 0;
+        if (row.type === "income") {
+          byDate[date] -= amount;
+        } else {
+          byDate[date] += amount;
+        }
+      });
+
+      const labels = Object.keys(byDate).sort();
+      const values = labels.map((d) => byDate[d]);
+
+      if (costChartInstance) {
+        costChartInstance.destroy();
+      }
+
+      costChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "일자별 순비용(수입-비용)",
+              data: values,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true },
+          },
+          scales: {
+            x: { ticks: { font: { size: 9 } } },
+            y: { ticks: { font: { size: 9 } } },
+          },
+        },
+      });
+    }
+
+    window.addEventListener("load", () => {
+      switchTab("projects");
+    });
+  </script>
 </body>
 </html>
